@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Magnus Carlsen — The King of Chess</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Anton&family=Cormorant+Garamond:ital,wght@0,300;1,300;1,600&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#030303;--s1:#0c0b09;--s2:#131310;
+  --gold:#C8A96E;--gold2:#E8C98A;--green:#00ff88;
+  --red:#ff4444;--w:#F0EBE0;--muted:#5a5448;--muted2:#2a2520;
+  --cl:rgba(240,217,181,0.85);--cd:#1a1208;
+}
+html{scroll-behavior:smooth;overflow-x:hidden}
+body{background:var(--bg);color:var(--w);font-family:'Share Tech Mono',monospace;overflow-x:hidden;cursor:crosshair}
+
+/* HUD */
+.hud{position:sticky;top:0;z-index:200;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:12px 28px;background:rgba(3,3,3,0.97);border-bottom:1px solid rgba(200,169,110,0.15);backdrop-filter:blur(20px)}
+.hud-logo{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:16px;color:var(--gold);letter-spacing:2px}
+.hud-mid{display:flex;align-items:center;gap:10px}
+.xp-label{font-size:9px;letter-spacing:3px;color:var(--muted)}
+.xp-bar{width:120px;height:5px;background:var(--muted2);overflow:hidden}
+.xp-fill{height:100%;background:linear-gradient(to right,var(--gold),var(--gold2));transition:width 0.8s;width:0}
+.xp-num{font-size:10px;color:var(--gold)}
+.hud-score{font-size:12px;color:var(--green);letter-spacing:2px}
+.dots{display:flex;gap:5px}
+.dot{width:9px;height:9px;border-radius:50%;border:1px solid var(--muted);transition:all 0.4s}
+.dot.on{background:var(--gold);border-color:var(--gold);box-shadow:0 0 6px var(--gold)}
+
+/* PROGRESS MAP */
+.pmap{display:flex;align-items:center;justify-content:center;padding:14px 20px;background:rgba(10,10,8,0.98);border-bottom:1px solid var(--muted2);overflow-x:auto;gap:0;flex-wrap:nowrap}
+.pnode{display:flex;flex-direction:column;align-items:center;gap:5px}
+.pdot{width:32px;height:32px;border-radius:50%;border:2px solid var(--muted);display:flex;align-items:center;justify-content:center;font-size:13px;background:var(--bg);transition:all 0.4s}
+.pnode.done .pdot{border-color:var(--gold);background:rgba(200,169,110,0.12);box-shadow:0 0 10px rgba(200,169,110,0.25)}
+.pnode.act .pdot{border-color:var(--green);background:rgba(0,255,136,0.08);box-shadow:0 0 14px rgba(0,255,136,0.35);animation:gp 1.5s infinite}
+.plabel{font-size:7px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;white-space:nowrap}
+.pnode.done .plabel{color:var(--gold)}
+.pnode.act .plabel{color:var(--green)}
+.pline{width:28px;height:2px;background:var(--muted2);margin-bottom:20px;transition:background 0.4s;flex-shrink:0}
+.pline.done{background:var(--gold)}
+
+/* BOOT */
+#boot{position:fixed;inset:0;z-index:9000;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px}
+.boot-title{font-family:'Anton',sans-serif;font-size:clamp(52px,10vw,130px);line-height:0.88;text-align:center;margin-bottom:28px;letter-spacing:-2px}
+.boot-out{display:block;-webkit-text-stroke:2px var(--gold);color:transparent}
+.boot-sol{display:block;color:var(--gold)}
+.boot-log{width:min(560px,90vw);font-size:11px;color:var(--green);line-height:2;margin-bottom:28px;min-height:180px}
+.bln{opacity:0;animation:fadeIn 0.2s forwards}
+.bar-wrap{width:min(560px,90vw)}
+.bar-lbl{font-size:9px;letter-spacing:4px;color:var(--muted);margin-bottom:6px}
+.bar-bg{height:3px;background:var(--muted2);overflow:hidden}
+.bar-fill{height:100%;background:var(--gold);transition:width 0.12s linear;width:0}
+#boot-btn{margin-top:28px;font-size:10px;letter-spacing:4px;text-transform:uppercase;color:var(--bg);background:var(--gold);border:none;padding:13px 36px;cursor:pointer;display:none;animation:pulse 2s infinite}
+#boot-btn:hover{background:var(--gold2)}
+
+/* TICKER */
+.ticker{background:var(--gold);overflow:hidden;padding:10px 0}
+.ttrack{display:inline-flex;animation:ticker 22s linear infinite;white-space:nowrap}
+.ti{font-family:'Anton',sans-serif;font-size:12px;letter-spacing:4px;color:var(--bg);padding:0 36px}
+
+/* HERO */
+.hero{min-height:92vh;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden}
+#hero-canvas{position:absolute;inset:0;width:100%;height:100%}
+.hero-ui{position:relative;z-index:5;text-align:center;padding:0 20px}
+.hero-pre{font-size:9px;letter-spacing:6px;color:var(--green);margin-bottom:18px;animation:blink 1.2s step-end infinite}
+.hero-name{font-family:'Anton',sans-serif;font-size:clamp(60px,12vw,170px);line-height:0.85;letter-spacing:-2px;animation:heroIn 1s 0.3s both}
+.hn-out{display:block;-webkit-text-stroke:2px var(--gold);color:transparent}
+.hn-sub{display:block;font-family:'Cormorant Garamond',serif;font-style:italic;font-weight:300;font-size:0.2em;color:var(--muted);letter-spacing:10px;-webkit-text-stroke:0;margin-top:10px}
+.hero-instr{margin-top:24px;font-size:10px;letter-spacing:3px;color:var(--muted);border:1px solid var(--muted2);padding:10px 20px;display:inline-block;animation:fadeIn 1s 1.2s both}
+.hero-sbar{display:flex;border-top:1px solid rgba(200,169,110,0.1);background:rgba(3,3,3,0.82);backdrop-filter:blur(14px);animation:slideUp 1s 1.3s both}
+.hs{flex:1;padding:18px 24px;border-right:1px solid rgba(200,169,110,0.08)}
+.hs:last-child{border:none}
+.hs-n{font-family:'Anton',sans-serif;font-size:30px;color:var(--gold);display:block}
+.hs-l{font-size:8px;letter-spacing:3px;color:var(--muted);margin-top:3px;display:block}
+
+/* SECTIONS */
+.sec{min-height:50vh;padding:60px 28px;max-width:1200px;margin:0 auto}
+.eyebrow{font-size:9px;letter-spacing:5px;text-transform:uppercase;color:var(--green);margin-bottom:8px}
+.gline{width:36px;height:2px;background:linear-gradient(to right,var(--gold),transparent);margin-bottom:24px}
+.dhead{font-family:'Anton',sans-serif;font-size:clamp(38px,5vw,80px);line-height:0.9;margin-bottom:40px}
+.dhead em{font-family:'Cormorant Garamond',serif;font-style:italic;font-weight:300;font-size:0.88em;-webkit-text-stroke:1px var(--gold);color:transparent;display:block}
+
+/* GATE */
+.gate{background:var(--s1);border:1px solid rgba(200,169,110,0.18);padding:36px 28px;text-align:center;position:relative;overflow:hidden}
+.gate::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 22px,rgba(200,169,110,0.018) 22px,rgba(200,169,110,0.018) 23px);pointer-events:none}
+.gate-tag{font-size:9px;letter-spacing:5px;color:var(--green);margin-bottom:6px;position:relative}
+.gate-h{font-family:'Anton',sans-serif;font-size:clamp(28px,4vw,48px);color:var(--w);margin-bottom:4px;position:relative}
+.gate-sub{font-size:11px;color:var(--muted);margin-bottom:20px;letter-spacing:1px;position:relative}
+.gate-btn{display:inline-block;margin-top:14px;font-size:9px;letter-spacing:4px;text-transform:uppercase;color:var(--bg);background:var(--green);border:none;padding:11px 28px;cursor:pointer}
+.gate-btn:hover{background:#00dd77}
+.gate-hint{color:var(--muted);font-size:10px;margin-top:10px;letter-spacing:1px;position:relative}
+.unlocked-bar{background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.2);padding:12px 20px;font-size:10px;letter-spacing:3px;color:var(--green);margin-bottom:32px;text-align:center}
+.locked-box{border:1px dashed var(--muted2);padding:60px 48px;text-align:center}
+.locked-ic{font-size:40px;opacity:0.25;display:block;margin-bottom:12px}
+.locked-t{font-size:10px;letter-spacing:3px;color:var(--muted)}
+.msg-ok{color:var(--green);font-size:11px;letter-spacing:2px;margin-top:12px;display:none}
+.msg-fail{color:var(--red);font-size:11px;letter-spacing:2px;margin-top:10px;display:none;animation:shake 0.4s}
+
+/* ---- CHESS BOARD ---- */
+.bwrap{width:min(440px,90vw);margin:0 auto}
+/* KEY FIX: board is ONE element with pointer-events, cells positioned via grid */
+.board{
+  display:grid;
+  grid-template-columns:repeat(8,1fr);
+  border:2px solid rgba(200,169,110,0.3);
+  box-shadow:0 0 40px rgba(200,169,110,0.08),0 20px 60px rgba(0,0,0,0.8);
+  width:100%;
+  cursor:pointer;
+}
+.cell{
+  aspect-ratio:1;
+  display:flex;align-items:center;justify-content:center;
+  font-size:clamp(16px,3.5vw,30px);
+  position:relative;
+  user-select:none;
+  transition:background 0.12s;
+}
+.cell.cl{background:var(--cl)}
+.cell.cd{background:var(--cd)}
+.cell.sel{background:rgba(200,169,110,0.7)!important;box-shadow:inset 0 0 14px rgba(200,169,110,0.5)}
+.cell.lm{background:rgba(200,169,110,0.32)!important}
+.cell.hint{background:rgba(0,255,136,0.3)!important}
+.cell:hover{filter:brightness(1.15)}
+.pc{line-height:1;pointer-events:none;font-style:normal}
+.pc.w{color:#fff;text-shadow:0 0 8px rgba(255,255,255,0.5),0 2px 4px rgba(0,0,0,0.9);-webkit-text-stroke:0.5px rgba(180,140,60,0.5)}
+.pc.b{color:#1a0a00;text-shadow:0 1px 3px rgba(0,0,0,0.8);-webkit-text-stroke:0.5px rgba(255,200,80,0.25)}
+.bcoords{display:flex;justify-content:space-between;padding:3px 0;font-size:9px;color:var(--muted);letter-spacing:1px}
+
+/* MOVE PIPS */
+.move-pips{display:flex;justify-content:center;gap:6px;margin-bottom:16px}
+.pip{width:24px;height:5px;background:var(--muted2);transition:background 0.3s}
+.pip.done{background:var(--gold)}
+
+/* ABOUT RPG */
+.rpg-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:start}
+.stat-row{margin-bottom:20px}
+.stat-name{font-size:9px;letter-spacing:3px;color:var(--gold);margin-bottom:5px;display:flex;justify-content:space-between}
+.stat-val{color:var(--green)}
+.stat-bar{height:7px;background:var(--muted2);overflow:hidden}
+.stat-fill{height:100%;width:0;transition:width 1.4s cubic-bezier(0.16,1,0.3,1)}
+.sf-g{background:linear-gradient(to right,var(--gold),var(--gold2))}
+.sf-gr{background:linear-gradient(to right,var(--green),#00cc66)}
+.ach-card{background:var(--s1);border:1px solid var(--muted2);border-left:3px solid var(--gold);padding:18px 20px;margin-bottom:10px;transition:all 0.3s}
+.ach-card:hover{border-left-color:var(--green);background:rgba(0,255,136,0.03);transform:translateX(5px)}
+.ach-ic{font-size:20px;margin-bottom:6px}
+.ach-t{font-size:12px;letter-spacing:1px;margin-bottom:3px}
+.ach-s{font-size:10px;color:var(--muted)}
+.lvl-badge{display:inline-block;background:var(--gold);color:var(--bg);font-family:'Anton',sans-serif;font-size:10px;letter-spacing:2px;padding:4px 12px;margin-right:8px;margin-bottom:14px}
+.lvl-g{background:var(--green)}
+.atext{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:17px;color:rgba(240,235,224,0.55);line-height:1.85;margin-bottom:14px}
+.atext strong{color:var(--w);font-style:normal;font-weight:600}
+
+/* SPEED */
+.speed-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;max-width:360px;margin:20px auto}
+.sp-tile{aspect-ratio:1;background:var(--s1);border:1px solid var(--muted2);display:flex;align-items:center;justify-content:center;font-size:34px;cursor:pointer;transition:all 0.2s;user-select:none}
+.sp-tile.active{border-color:var(--green);background:rgba(0,255,136,0.12);animation:gp 0.6s ease-in-out infinite}
+.sp-tile.hit{background:rgba(200,169,110,0.2);border-color:var(--gold)}
+.sp-tile.miss{background:rgba(255,68,68,0.12);border-color:var(--red)}
+.speed-timer{font-family:'Anton',sans-serif;font-size:52px;color:var(--gold);margin:12px 0;text-align:center}
+.speed-timer.urg{color:var(--red);animation:pulse 0.5s infinite}
+.speed-sc{font-size:16px;letter-spacing:3px;color:var(--green);text-align:center;margin-bottom:4px}
+
+/* GALLERY */
+.gal-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:28px}
+.flip{perspective:700px;aspect-ratio:0.82;cursor:pointer}
+.flip-in{width:100%;height:100%;transform-style:preserve-3d;transition:transform 0.7s cubic-bezier(0.16,1,0.3,1);position:relative}
+.flip.fl .flip-in{transform:rotateY(180deg)}
+.ff,.fb{position:absolute;inset:0;backface-visibility:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ff{background:var(--s1);border:1px solid var(--muted2);font-size:60px;transition:border-color 0.3s}
+.flip:hover .ff{border-color:rgba(200,169,110,0.4)}
+.ff-hint{font-size:8px;letter-spacing:3px;color:var(--muted);margin-top:10px;text-transform:uppercase}
+.fb{background:var(--s2);border:1px solid var(--gold);transform:rotateY(180deg);padding:20px;text-align:center}
+.fb-tag{font-size:7px;letter-spacing:4px;color:var(--green);margin-bottom:6px;text-transform:uppercase}
+.fb-title{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:16px;color:var(--w);margin-bottom:6px}
+.fb-desc{font-size:10px;color:var(--muted);line-height:1.6}
+
+/* SPONSORS */
+.sp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin-top:32px}
+.sp-c{background:var(--s1);padding:28px 22px;border-top:2px solid transparent;transition:all 0.3s}
+.sp-c:hover{border-top-color:var(--gold);background:rgba(200,169,110,0.04);transform:translateY(-4px)}
+.sp-g{font-family:'Anton',sans-serif;font-size:32px;color:var(--gold);opacity:0.2;margin-bottom:12px;transition:opacity 0.3s}
+.sp-c:hover .sp-g{opacity:0.65}
+.sp-n{font-family:'Anton',sans-serif;font-size:20px;letter-spacing:2px;margin-bottom:3px}
+.sp-cat{font-size:8px;letter-spacing:4px;color:var(--gold);margin-bottom:10px;text-transform:uppercase}
+.sp-d{font-size:11px;color:var(--muted);line-height:1.65}
+
+/* MERCH */
+.merch-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin-top:32px}
+.mc{background:var(--s1);overflow:hidden;border:1px solid transparent;transition:transform 0.4s,border-color 0.3s}
+.mc:hover{transform:translateY(-6px);border-color:rgba(200,169,110,0.18)}
+.mc-img{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:72px;position:relative;background:var(--s2);overflow:hidden}
+.mc-chess{position:absolute;inset:0;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(4,1fr);opacity:0.08}
+.mcc{background:transparent}.mcc.l{background:var(--cl)}
+.mc-p{position:relative;z-index:2;transition:transform 0.5s,filter 0.4s;filter:drop-shadow(0 0 12px rgba(200,169,110,0.15))}
+.mc:hover .mc-p{transform:scale(1.18) translateY(-8px);filter:drop-shadow(0 20px 30px rgba(200,169,110,0.4))}
+.mc-info{padding:16px 18px 20px}
+.mc-badge{display:inline-block;font-size:7px;letter-spacing:3px;color:var(--bg);background:var(--gold);padding:3px 9px;margin-bottom:7px}
+.mc-name{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:15px;margin-bottom:10px}
+.mc-foot{display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--muted2);padding-top:10px}
+.mc-price{font-family:'Anton',sans-serif;font-size:24px;color:var(--gold)}
+.mc-buy{font-size:8px;letter-spacing:3px;color:var(--bg);background:var(--gold);border:none;padding:7px 14px;cursor:pointer;transition:background 0.3s}
+.mc-buy:hover{background:var(--gold2)}
+
+/* CONTACT */
+.ct-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:start}
+.ct-big{font-family:'Anton',sans-serif;font-size:clamp(44px,6vw,88px);line-height:0.9;margin-bottom:24px}
+.ct-big span{-webkit-text-stroke:1px var(--gold);color:transparent;display:block}
+.soc-list{display:flex;flex-direction:column;gap:2px;margin-top:20px}
+.soc-row{display:flex;align-items:center;gap:14px;padding:13px 14px;background:var(--s1);border-left:2px solid transparent;transition:all 0.3s}
+.soc-row:hover{border-left-color:var(--gold);background:rgba(200,169,110,0.04);padding-left:22px}
+.soc-nm{font-size:10px;letter-spacing:2px;text-transform:uppercase}
+.soc-hn{margin-left:auto;font-size:11px;color:var(--muted);font-family:'Cormorant Garamond',serif;font-style:italic}
+.cf{display:flex;flex-direction:column;gap:14px}
+.cf-g{display:flex;flex-direction:column;gap:6px}
+.cf-l{font-size:8px;letter-spacing:4px;color:var(--muted)}
+.cf-i,.cf-ta{background:var(--s1);border:1px solid var(--muted2);color:var(--w);font-family:'Share Tech Mono',monospace;font-size:12px;padding:11px 13px;outline:none;width:100%;transition:border-color 0.3s;resize:none}
+.cf-i:focus,.cf-ta:focus{border-color:var(--gold)}
+.cf-ta{height:110px}
+.cf-btn{background:var(--gold);border:none;color:var(--bg);font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:4px;text-transform:uppercase;padding:14px;cursor:pointer;transition:background 0.3s;width:100%}
+.cf-btn:hover{background:var(--gold2)}
+.success-box{text-align:center;padding:52px 0;display:none}
+.s-piece{font-size:52px;display:block;margin-bottom:14px}
+.s-head{font-family:'Anton',sans-serif;font-size:42px;color:var(--gold);margin-bottom:8px}
+.s-sub{font-size:10px;color:var(--muted);letter-spacing:2px}
+
+/* TOAST */
+#toast{position:fixed;bottom:24px;right:24px;z-index:8000;background:var(--s1);border:1px solid var(--gold);padding:14px 20px;font-size:10px;letter-spacing:2px;color:var(--w);max-width:280px;display:none;animation:toastIn 0.4s}
+#toast.g{border-color:var(--green);color:var(--green)}
+#toast.r{border-color:var(--red);color:var(--red)}
+
+/* FINAL */
+#final{padding:60px 28px;text-align:center;background:var(--bg);border-top:1px solid rgba(200,169,110,0.12);display:none}
+.final-h{font-family:'Anton',sans-serif;font-size:clamp(36px,6vw,72px);color:var(--gold);margin-bottom:12px}
+.final-sub{font-size:11px;letter-spacing:4px;color:var(--muted);margin-bottom:20px}
+.final-score{font-family:'Anton',sans-serif;font-size:42px;color:var(--green);margin-bottom:8px}
+.final-rank{font-size:11px;letter-spacing:3px;color:var(--muted)}
+
+/* FOOTER */
+.footer{border-top:1px solid rgba(200,169,110,0.08);padding:28px 32px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.f-logo{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:17px;color:var(--gold);letter-spacing:2px}
+.f-copy{font-size:9px;color:var(--muted);letter-spacing:1px}
+.f-elo{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:11px;color:var(--muted)}
+.f-elo span{color:var(--gold)}
+
+@keyframes heroIn{from{opacity:0;transform:scale(0.94) translateY(20px)}to{opacity:1;transform:none}}
+@keyframes slideUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.25}}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(200,169,110,0.4)}50%{box-shadow:0 0 0 8px rgba(200,169,110,0)}}
+@keyframes gp{0%,100%{box-shadow:0 0 10px rgba(0,255,136,0.25)}50%{box-shadow:0 0 28px rgba(0,255,136,0.6)}}
+@keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@keyframes shake{0%,100%{transform:none}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+@keyframes toastIn{from{transform:translateX(80px);opacity:0}to{transform:none;opacity:1}}
+
+@media(max-width:700px){
+  .rpg-grid,.ct-grid{grid-template-columns:1fr}
+  .sp-grid,.merch-grid,.gal-grid{grid-template-columns:1fr 1fr}
+  .speed-grid{grid-template-columns:repeat(3,1fr)}
+  .hud{padding:8px 14px}
+  .hud-mid{display:none}
+  .sec{padding:40px 16px}
+}
+</style>
+</head>
+<body>
+
+<!-- BOOT SCREEN -->
+<div id="boot">
+  <div class="boot-title">
+    <span class="boot-out">MAGNUS</span>
+    <span class="boot-sol">CARLSEN</span>
+  </div>
+  <div class="boot-log" id="boot-log"></div>
+  <div class="bar-wrap">
+    <div class="bar-lbl">LOADING... <span id="boot-pct">0</span>%</div>
+    <div class="bar-bg"><div class="bar-fill" id="bar-fill"></div></div>
+  </div>
+  <button id="boot-btn" onclick="enterSite()">▶ ENTER THE KINGDOM</button>
+</div>
+
+<!-- MAIN SITE -->
+<div id="site" style="display:none">
+  <div class="hud">
+    <div class="hud-logo">Magnus Carlsen</div>
+    <div class="hud-mid">
+      <span class="xp-label">XP</span>
+      <div class="xp-bar"><div class="xp-fill" id="xp-fill"></div></div>
+      <span class="xp-num" id="xp-num">0/1000</span>
+    </div>
+    <div class="hud-score" id="hud-score">SCORE: 000000</div>
+    <div class="dots" id="dots"></div>
+  </div>
+  <div class="pmap" id="pmap"></div>
+
+  <div class="ticker"><div class="ttrack" id="ttrack"></div></div>
+
+  <!-- HERO -->
+  <div class="hero">
+    <canvas id="hero-canvas"></canvas>
+    <div class="hero-ui">
+      <div class="hero-pre">▶ PLAYER ONE — BEGIN YOUR QUEST</div>
+      <div class="hero-name">
+        <span class="hn-out">MAGNUS</span>
+        CARLSEN
+        <span class="hn-sub">The King of Chess · Level 99 Grandmaster</span>
+      </div>
+      <div class="hero-instr">Scroll down · Solve puzzles · Unlock the kingdom</div>
+    </div>
+    <div class="hero-sbar">
+      <div class="hs"><span class="hs-n">2882</span><span class="hs-l">Peak ELO</span></div>
+      <div class="hs"><span class="hs-n">5×</span><span class="hs-l">World Champion</span></div>
+      <div class="hs"><span class="hs-n">#1</span><span class="hs-l">FIDE Ranking</span></div>
+      <div class="hs"><span class="hs-n">13</span><span class="hs-l">GM at Age</span></div>
+    </div>
+  </div>
+
+  <!-- ABOUT -->
+  <div style="background:var(--s1)"><div class="sec" id="sec-about"></div></div>
+  <!-- GALLERY -->
+  <div style="background:var(--bg)"><div class="sec" id="sec-gallery"></div></div>
+  <!-- PARTNERS -->
+  <div style="background:var(--s1)"><div class="sec" id="sec-partners"></div></div>
+  <!-- MERCH -->
+  <div style="background:var(--bg)"><div class="sec" id="sec-merch"></div></div>
+  <!-- CONTACT -->
+  <div style="background:var(--s2)"><div class="sec" id="sec-contact"></div></div>
+
+  <div id="final">
+    <div class="final-h">GAME COMPLETE</div>
+    <div class="final-sub">YOU HAVE CHALLENGED THE KING</div>
+    <div class="final-score" id="final-score">FINAL SCORE: 0</div>
+    <div class="final-rank" id="final-rank"></div>
+  </div>
+  <div class="footer">
+    <div class="f-logo">Magnus Carlsen</div>
+    <div class="f-copy">© 2024 Magnus Carlsen. All rights reserved.</div>
+    <div class="f-elo">Peak Rating <span>2882</span> · The GOAT</div>
+  </div>
+  <div id="toast"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  MAGNUS CARLSEN GAMIFIED — VANILLA JS
+//  FIX: Event delegation on board container
+//       No closure stale-state bugs
+// ═══════════════════════════════════════════════
+
+// ── CHESS CONSTANTS ──
+const PM = {K:'♔',Q:'♕',R:'♖',B:'♗',N:'♘',P:'♙',k:'♚',q:'♛',r:'♜',b:'♝',n:'♞',p:'♟'};
+const FILES = ['a','b','c','d','e','f','g','h'];
+const isW = p => p === p.toUpperCase();
+const sqI = sq => (8 - parseInt(sq[1])) * 8 + FILES.indexOf(sq[0]);
+
+// ── GLOBAL STATE ──
+const G = {
+  xp:0, score:0,
+  unlocks:[true,false,false,false,false,false,false,false],
+  flipped:new Set(),
+  // PUZZLE state
+  pBoard:null, pSel:-1, pSolved:false, pAttempts:0,
+  // CHESS state
+  cBoard:null, cSel:-1, cTurn:'w', cMoves:0, cDone:false,
+  // SPEED state
+  sActive:-1, sScore:0, sTime:15, sStarted:false, sDone:false,
+  sIv:null, sTimeout:null
+};
+
+const STAGES=[{i:'♟',l:'Hero'},{i:'🔒',l:'About'},{i:'⚔',l:'Chess'},{i:'🖼',l:'Gallery'},{i:'⚡',l:'Speed'},{i:'🏆',l:'Partners'},{i:'👕',l:'Merch'},{i:'📩',l:'Contact'}];
+const PUZZLE_ANS=[sqI('d1'),sqI('d8')];
+
+// ── BOOT ──
+const BOOT_LINES=['> INITIALIZING MAGNUS.OS v2.0...','> Loading chess engine... OK','> ELO matrix calibrated [2882]... OK','> 5 World Championships loaded... OK','> Gamification layer active... OK','> All systems nominal. Welcome, challenger.'];
+let bPct=0;
+const bIv=setInterval(()=>{
+  bPct+=Math.random()*9+3;
+  if(bPct>=100){bPct=100;clearInterval(bIv);document.getElementById('boot-btn').style.display='inline-block';}
+  document.getElementById('bar-fill').style.width=bPct+'%';
+  document.getElementById('boot-pct').textContent=Math.round(bPct);
+  const li=Math.min(Math.floor((bPct/100)*BOOT_LINES.length),BOOT_LINES.length-1);
+  document.getElementById('boot-log').innerHTML=BOOT_LINES.slice(0,li+1).map((l,i)=>`<div class="bln" style="color:${i===li?'var(--gold2)':'var(--green)'};animation-delay:${i*0.05}s">${l}</div>`).join('');
+},130);
+
+function enterSite(){
+  document.getElementById('boot').style.display='none';
+  document.getElementById('site').style.display='block';
+  initTicker(); initCanvas(); initHUD(); renderAll();
+  toast('Welcome, Challenger! Scroll down to begin.','');
+}
+
+// ── TICKER ──
+function initTicker(){
+  const t=['WORLD CHESS CHAMPION','♟','FIDE RATING 2882','♟','5× CHAMPION','♟','MAGNUS CARLSEN','♟','THE KING OF CHESS','♟'];
+  const d=[...t,...t];
+  document.getElementById('ttrack').innerHTML=d.map(x=>`<span class="ti">${x}</span>`).join('');
+}
+
+// ── CANVAS ──
+function initCanvas(){
+  const cv=document.getElementById('hero-canvas'),ctx=cv.getContext('2d');
+  const C=12,R=8;let cells=[],parts=[],gt=0;
+  function resize(){
+    const dpr=window.devicePixelRatio||1;
+    cv.width=cv.offsetWidth*dpr;cv.height=cv.offsetHeight*dpr;ctx.scale(dpr,dpr);
+    const W=cv.offsetWidth,H=cv.offsetHeight,cw=W/C,ch=H/R;
+    cells=Array.from({length:C*R},(_,i)=>({x:(i%C)*cw,y:Math.floor(i/C)*ch,w:cw,h:ch,isL:(Math.floor(i/C)+i%C)%2===0,glow:0,glowing:false}));
+  }
+  function spawnGlow(){
+    const c=cells[Math.floor(Math.random()*cells.length)];
+    if(!c.glowing){c.glowing=true;setTimeout(()=>{c.glowing=false;},1300);
+    const ni=cells.indexOf(c);[-1,1,-C,C].forEach(d=>{const nb=cells[ni+d];if(nb&&!nb.glowing)setTimeout(()=>{nb.glowing=true;setTimeout(()=>{nb.glowing=false;},850);},280);});}
+  }
+  function draw(){
+    const W=cv.offsetWidth,H=cv.offsetHeight;ctx.clearRect(0,0,W,H);
+    cells.forEach(c=>{
+      c.glow=c.glowing?Math.min(c.glow+0.065,1):Math.max(c.glow-0.032,0);
+      ctx.fillStyle=c.isL?`rgba(240,217,181,${0.03+c.glow*0.18})`:`rgba(6,4,2,0.45)`;ctx.fillRect(c.x,c.y,c.w,c.h);
+      if(c.glow>0.02){ctx.fillStyle=`rgba(200,169,110,${c.glow*0.13})`;ctx.fillRect(c.x,c.y,c.w,c.h);ctx.strokeStyle=`rgba(200,169,110,${c.glow*0.38})`;ctx.lineWidth=1;ctx.strokeRect(c.x+.5,c.y+.5,c.w-1,c.h-1);if(c.glow>0.5&&Math.random()<0.07)parts.push({x:c.x+Math.random()*c.w,y:c.y+Math.random()*c.h,vx:(Math.random()-.5)*.55,vy:-Math.random()*.7-.15,life:1,size:Math.random()*1.8+.4});}
+    });
+    for(let y=0;y<H;y+=3){ctx.fillStyle='rgba(0,0,0,0.035)';ctx.fillRect(0,y,W,1);}
+    parts=parts.filter(p=>p.life>0);parts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.life-=0.02;ctx.beginPath();ctx.arc(p.x,p.y,p.size*p.life,0,Math.PI*2);ctx.fillStyle=`rgba(200,169,110,${p.life*.5})`;ctx.fill();});
+    gt++;if(gt>20){spawnGlow();gt=0;}requestAnimationFrame(draw);
+  }
+  resize();window.addEventListener('resize',resize);draw();
+}
+
+// ── HUD ──
+function initHUD(){document.getElementById('dots').innerHTML=STAGES.map((s,i)=>`<div class="dot${G.unlocks[i]?' on':''}" id="dot${i}" title="${s.l}"></div>`).join('');}
+
+function updateHUD(){
+  document.getElementById('xp-fill').style.width=(G.xp/1000*100)+'%';
+  document.getElementById('xp-num').textContent=G.xp+'/1000';
+  document.getElementById('hud-score').textContent='SCORE: '+String(G.score).padStart(6,'0');
+  STAGES.forEach((_,i)=>{const d=document.getElementById('dot'+i);if(d)d.className='dot'+(G.unlocks[i]?' on':'');});
+  const active=G.unlocks.findIndex(u=>!u);
+  document.getElementById('pmap').innerHTML=STAGES.map((s,i)=>`<div class="pnode${G.unlocks[i]?' done':''}${i===active?' act':''}"><div class="pdot">${G.unlocks[i]?'✓':s.i}</div><div class="plabel">${s.l}</div></div>${i<STAGES.length-1?`<div class="pline${G.unlocks[i]?' done':''}"></div>`:''}`).join('');
+}
+
+// ── UNLOCK ──
+function unlock(idx,pts,msg){
+  G.unlocks[idx]=true;G.xp=Math.min(G.xp+pts,1000);G.score+=pts;
+  updateHUD();toast(`+${pts} XP — ${msg}`,'g');renderAll();
+}
+
+// ── TOAST ──
+let tTimer=null;
+function toast(msg,cls){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className=cls;t.style.display='block';
+  if(tTimer)clearTimeout(tTimer);
+  tTimer=setTimeout(()=>{t.style.display='none';},3000);
+}
+
+// ═══════════════════════════════════════════════
+//  CHESS BOARD RENDERER — EVENT DELEGATION FIX
+//  One click listener on the container div.
+//  Uses data-idx attribute on each cell.
+//  Handler reads current state from G.* globals.
+// ═══════════════════════════════════════════════
+function makeBoard(board, sel, lastMove, hints, disabled, containerId){
+  const el=document.getElementById(containerId);
+  if(!el)return;
+
+  // Build HTML string — fast, no addEventListener per cell
+  let html='<div class="board" id="'+containerId+'-grid">';
+  board.forEach((p,i)=>{
+    const r=Math.floor(i/8),c=i%8,isL=(r+c)%2===0;
+    const isSel=i===sel, isLM=Array.isArray(lastMove)&&lastMove.includes(i), isHint=Array.isArray(hints)&&hints.includes(i);
+    let cls='cell '+(isL?'cl':'cd')+(isSel?' sel':'')+(isLM?' lm':'')+(isHint?' hint':'');
+    const piece=p?`<span class="pc ${isW(p)?'w':'b'}">${PM[p]||p}</span>`:'';
+    html+=`<div class="${cls}" data-idx="${i}" data-disabled="${disabled?1:0}">${piece}</div>`;
+  });
+  html+='</div><div class="bcoords">'+FILES.map(f=>`<span>${f}</span>`).join('')+'</div>';
+
+  el.innerHTML='<div class="bwrap">'+html+'</div>';
+
+  // ONE listener on the grid — event delegation, never stale
+  const grid=document.getElementById(containerId+'-grid');
+  grid.addEventListener('click',function(e){
+    const cell=e.target.closest('[data-idx]');
+    if(!cell||cell.dataset.disabled==='1')return;
+    const idx=parseInt(cell.dataset.idx);
+    // Route to correct handler based on which board this is
+    if(containerId==='puzzle-wrap') handlePuzzle(idx);
+    else if(containerId==='chess-wrap') handleChess(idx);
+  });
+}
+
+// ── PUZZLE ──
+function initPuzzle(){
+  G.pBoard=Array(64).fill(null);
+  G.pBoard[sqI('e1')]='K';G.pBoard[sqI('d1')]='Q';G.pBoard[sqI('f1')]='R';
+  G.pBoard[sqI('e8')]='k';G.pBoard[sqI('d8')]='r';G.pBoard[sqI('f8')]='r';
+  G.pBoard[sqI('d7')]='p';G.pBoard[sqI('e7')]='p';G.pBoard[sqI('f7')]='p';
+  G.pSel=-1;G.pSolved=false;G.pAttempts=0;
+}
+
+function renderPuzzleGate(){
+  document.getElementById('sec-about').innerHTML=`
+    <div class="gate">
+      <div class="gate-tag">⚡ PUZZLE GATE — UNLOCK: ABOUT</div>
+      <div class="gate-h">MATE IN 1</div>
+      <div class="gate-sub">White to move · Find the checkmate</div>
+      <div id="puzzle-wrap"></div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:24px;margin:14px 0 6px;flex-wrap:wrap">
+        <span style="font-size:13px;color:rgba(240,235,224,0.7)"><span style="color:#fff;font-size:22px;margin-right:6px">♔♕♖</span>White = You</span>
+        <span style="font-size:13px;color:rgba(240,235,224,0.7)"><span style="color:#1a0a00;background:rgba(240,217,181,0.75);padding:1px 6px;font-size:22px;margin-right:6px">♚♛♜</span>Black = Enemy</span>
+      </div>
+      <div class="msg-fail" id="pmsg-fail">✗ Wrong move — <span id="pattempts">0</span> attempts</div>
+      <div class="msg-ok" id="pmsg-ok">✓ CHECKMATE! Unlocking About...</div>
+      <div class="gate-hint">👆 Click the white ♕ Queen (d1 bottom row) → then click d8 (top row)</div>
+    </div>`;
+  drawPuzzle();
+}
+
+function drawPuzzle(){
+  makeBoard(G.pBoard,G.pSel,[],[],G.pSolved,'puzzle-wrap');
+}
+
+function handlePuzzle(idx){
+  if(G.pSolved)return;
+  if(G.pSel===-1){
+    if(G.pBoard[idx]&&isW(G.pBoard[idx])){G.pSel=idx;drawPuzzle();}
+  } else {
+    if(idx===G.pSel){G.pSel=-1;drawPuzzle();return;}
+    if(G.pSel===PUZZLE_ANS[0]&&idx===PUZZLE_ANS[1]){
+      // Correct!
+      const nb=[...G.pBoard];nb[idx]=nb[G.pSel];nb[G.pSel]=null;
+      G.pBoard=nb;G.pSel=-1;G.pSolved=true;drawPuzzle();
+      const ok=document.getElementById('pmsg-ok');if(ok)ok.style.display='block';
+      setTimeout(()=>unlock(1,200,'ABOUT MAGNUS UNLOCKED'),1100);
+    } else {
+      // Wrong
+      G.pAttempts++;G.pSel=-1;drawPuzzle();
+      const f=document.getElementById('pmsg-fail'),a=document.getElementById('pattempts');
+      if(f){f.style.display='block';if(a)a.textContent=G.pAttempts;setTimeout(()=>{f.style.display='none';},1000);}
+    }
+  }
+}
+
+// ── ABOUT ──
+function renderAbout(){
+  const stats=[{n:'ENDGAME MASTERY',v:99,g:true},{n:'TACTICAL VISION',v:97,g:false},{n:'PSYCHOLOGICAL WARFARE',v:98,g:true},{n:'SPEED CHESS',v:96,g:false},{n:'OPENING THEORY',v:93,g:false},{n:'WILL TO WIN',v:100,g:true}];
+  document.getElementById('sec-about').innerHTML=`
+    <div class="unlocked-bar">✓ PUZZLE SOLVED — ABOUT MAGNUS UNLOCKED (+200 XP)</div>
+    <div class="eyebrow">About Magnus</div><div class="gline"></div>
+    <div class="rpg-grid">
+      <div>
+        <div class="dhead">THE<br><em>MIND</em><br>BEHIND<br>THE BOARD</div>
+        <p class="atext"><strong>Magnus Carlsen</strong> became a grandmaster at 13, reached world #1 at 19, and captured the World Championship in 2013 — holding it for a decade.</p>
+        <p class="atext">His <strong>peak FIDE rating of 2882</strong> is the highest in history. He doesn't just win — he suffocates opponents into submission.</p>
+        <div style="margin-top:16px"><span class="lvl-badge">LVL 99 GRANDMASTER</span><span class="lvl-badge lvl-g">GOAT</span></div>
+      </div>
+      <div>
+        <div id="statbox" style="margin-bottom:28px">
+          ${stats.map((s,i)=>`<div class="stat-row"><div class="stat-name">${s.n}<span class="stat-val">${s.v}/100</span></div><div class="stat-bar"><div class="stat-fill ${s.g?'sf-gr':'sf-g'}" id="sf${i}" style="transition-delay:${i*0.12}s"></div></div></div>`).join('')}
+        </div>
+        <div class="ach-card"><div class="ach-ic">♔</div><div class="ach-t">5× Classical World Champion</div><div class="ach-s">2013 · 2014 · 2016 · 2018 · 2021</div></div>
+        <div class="ach-card"><div class="ach-ic">⚡</div><div class="ach-t">Rapid & Blitz World Champion</div><div class="ach-s">Dominant across all formats</div></div>
+        <div class="ach-card"><div class="ach-ic">📈</div><div class="ach-t">Highest Rated Player in History</div><div class="ach-s">Peak ELO 2882 — July 2014</div></div>
+      </div>
+    </div>`;
+  // Animate bars after paint
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    stats.forEach((_,i)=>{const b=document.getElementById('sf'+i);if(b)b.style.width=stats[i].v+'%';});
+  }));
+}
+
+// ── MINI CHESS ──
+function initChess(){
+  G.cBoard=Array(64).fill(null);
+  ['r','n','b','q','k','b','n','r'].forEach((p,i)=>{G.cBoard[i]=p;G.cBoard[56+i]=p.toUpperCase();});
+  for(let i=0;i<8;i++){G.cBoard[8+i]='p';G.cBoard[48+i]='P';}
+  G.cSel=-1;G.cTurn='w';G.cMoves=0;G.cDone=false;G.cLastMove=[];
+}
+
+function getLegal(from,board){
+  const p=board[from];if(!p)return[];
+  const out=[],r=Math.floor(from/8),c=from%8;
+  if(p.toUpperCase()==='P'){
+    const dir=isW(p)?-1:1;
+    const fwd=from+dir*8;
+    if(fwd>=0&&fwd<64&&!board[fwd]){
+      out.push(fwd);
+      const fwd2=from+dir*16;
+      if(((isW(p)&&r===6)||(!isW(p)&&r===1))&&!board[fwd2])out.push(fwd2);
+    }
+    [-1,1].forEach(dc=>{
+      const cap=from+dir*8+dc;
+      if(cap>=0&&cap<64&&Math.abs(cap%8-c)===1&&board[cap]&&isW(board[cap])!==isW(p))out.push(cap);
+    });
+  } else {
+    const dirs=p.toUpperCase()==='N'?[[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]]:
+      p.toUpperCase()==='K'?[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]:
+      p.toUpperCase()==='R'?[[0,1],[0,-1],[1,0],[-1,0]]:
+      p.toUpperCase()==='B'?[[1,1],[1,-1],[-1,1],[-1,-1]]:
+      [[0,1],[0,-1],[1,0],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]];
+    const sliding=['Q','R','B'].includes(p.toUpperCase());
+    dirs.forEach(([dr,dc])=>{
+      let nr=r+dr,nc=c+dc;
+      while(nr>=0&&nr<8&&nc>=0&&nc<8){
+        const ti=nr*8+nc;
+        if(!board[ti])out.push(ti);
+        else{if(isW(board[ti])!==isW(p))out.push(ti);break;}
+        if(!sliding)break;nr+=dr;nc+=dc;
+      }
+    });
+  }
+  return out;
+}
+
+function getAI(board){
+  const moves=[];
+  board.forEach((p,from)=>{
+    if(!p||isW(p))return;
+    const legal=getLegal(from,board);
+    legal.forEach(to=>moves.push([from,to]));
+  });
+  if(!moves.length)return null;
+  return moves[Math.floor(Math.random()*moves.length)];
+}
+
+function renderChessGate(){
+  const TARGET=5;
+  document.getElementById('sec-gallery').innerHTML=`
+    <div class="gate">
+      <div class="gate-tag">⚔ CHESS CHALLENGE — UNLOCK: GALLERY</div>
+      <div class="gate-h" id="chess-status">Your turn (White)</div>
+      <div class="gate-sub">Make ${TARGET} legal moves to unlock Gallery</div>
+      <div class="move-pips" id="chess-pips">${Array.from({length:TARGET}).map((_,i)=>`<div class="pip" id="pip${i}"></div>`).join('')}</div>
+      <div id="chess-wrap"></div>
+    </div>`;
+  drawChess();
+}
+
+function drawChess(){
+  makeBoard(G.cBoard, G.cSel, G.cLastMove||[], [], G.cDone||G.cTurn==='b', 'chess-wrap');
+}
+
+function handleChess(idx){
+  if(G.cDone||G.cTurn!=='w')return;
+  if(G.cSel===-1){
+    if(G.cBoard[idx]&&isW(G.cBoard[idx])){G.cSel=idx;drawChess();}
+  } else {
+    const legal=getLegal(G.cSel,G.cBoard);
+    if(legal.includes(idx)){
+      // Valid move
+      const nb=[...G.cBoard];nb[idx]=nb[G.cSel];nb[G.cSel]=null;
+      G.cLastMove=[G.cSel,idx];G.cBoard=nb;G.cSel=-1;G.cMoves++;
+      // Update pips
+      for(let i=0;i<5;i++){const p=document.getElementById('pip'+i);if(p)p.className='pip'+(i<G.cMoves?' done':'');}
+      drawChess();
+      if(G.cMoves>=5){
+        G.cDone=true;
+        const s=document.getElementById('chess-status');if(s)s.textContent='✓ Challenge complete!';
+        setTimeout(()=>unlock(2,250,'GALLERY UNLOCKED'),900);
+        return;
+      }
+      // AI responds
+      G.cTurn='b';
+      const s=document.getElementById('chess-status');if(s)s.textContent='Magnus is thinking...';
+      drawChess(); // re-render disabled
+      setTimeout(()=>{
+        const ai=getAI(G.cBoard);
+        if(ai){const nb2=[...G.cBoard];nb2[ai[1]]=nb2[ai[0]];nb2[ai[0]]=null;G.cBoard=nb2;G.cLastMove=ai;}
+        G.cTurn='w';
+        const s2=document.getElementById('chess-status');if(s2)s2.textContent=`Your turn · ${G.cMoves+1}/5 moves`;
+        drawChess();
+      },850);
+    } else {
+      // Click own piece = reselect, else deselect
+      if(G.cBoard[idx]&&isW(G.cBoard[idx]))G.cSel=idx;
+      else G.cSel=-1;
+      drawChess();
+    }
+  }
+}
+
+// ── GALLERY ──
+const GAL=[
+  {p:'♛',tag:'World Championship',title:'Astana 2023',desc:'Magnus defends in a legendary 14-game match.'},
+  {p:'♔',tag:'Norway Chess',title:'Stavanger 2022',desc:'Armageddon victories seal another title.'},
+  {p:'♜',tag:'Speed Chess',title:'Chess.com Blitz',desc:'3+0 — Magnus is utterly dominant.'},
+  {p:'♝',tag:'Sinquefield Cup',title:'Saint Louis 2019',desc:'A perfect score — 9/9 classical chess.'},
+  {p:'♞',tag:'Chess Olympiad',title:'Chennai 2022',desc:'Gold for Norway with Magnus on board one.'},
+  {p:'♟',tag:'Online Arena',title:'Chess.com #1',desc:'100M+ players — Magnus streams to all.'},
+];
+
+function renderGallery(){
+  document.getElementById('sec-gallery').innerHTML=`
+    <div class="unlocked-bar">✓ CHESS COMPLETE — GALLERY UNLOCKED (+250 XP)</div>
+    <div class="eyebrow">Gallery</div><div class="gline"></div>
+    <div class="dhead">CLICK TO<br><em>REVEAL</em></div>
+    <div style="font-size:10px;color:var(--muted);letter-spacing:2px;margin-bottom:12px">Flip all 6 cards to unlock the next challenge</div>
+    <div class="gal-grid">
+      ${GAL.map((g,i)=>`<div class="flip${G.flipped.has(i)?' fl':''}" onclick="flipCard(${i})"><div class="flip-in"><div class="ff"><div style="font-size:60px">${g.p}</div><div class="ff-hint">click to reveal</div></div><div class="fb"><div class="fb-tag">${g.tag}</div><div class="fb-title">${g.title}</div><div class="fb-desc">${g.desc}</div></div></div></div>`).join('')}
+    </div>
+    <div id="gal-cta" style="text-align:center;margin-top:28px;display:${G.flipped.size===GAL.length&&!G.unlocks[3]?'block':'none'}">
+      <button class="gate-btn" onclick="unlock(3,200,'SPEED CHALLENGE UNLOCKED')">All revealed! CONTINUE →</button>
+    </div>`;
+}
+
+function flipCard(i){
+  if(G.flipped.has(i))return;
+  G.flipped.add(i);G.score+=15;updateHUD();
+  const el=document.getElementById('sec-gallery').querySelectorAll('.flip')[i];
+  if(el)el.classList.add('fl');
+  toast('+15 XP — Revealed!','');
+  if(G.flipped.size===GAL.length&&!G.unlocks[3]){
+    const cta=document.getElementById('gal-cta');if(cta)cta.style.display='block';
+  }
+}
+
+// ── SPEED ──
+const SP_PIECES=['♔','♕','♖','♗','♘','♙','♚','♛','♜','♝','♞','♟'];
+const SP_TARGET=8;
+
+function renderSpeedGate(){
+  document.getElementById('sec-partners').innerHTML=`
+    <div class="gate speed-wrap">
+      <div class="gate-tag">⚡ SPEED CHALLENGE — UNLOCK: PARTNERS</div>
+      <div class="gate-h">TAP THE PIECES</div>
+      <div class="gate-sub">Hit ${SP_TARGET} glowing pieces in 15 seconds</div>
+      <div id="sp-start"><button class="gate-btn" onclick="startSpeed()">START →</button></div>
+      <div id="sp-game" style="display:none">
+        <div class="speed-timer" id="sp-timer">15s</div>
+        <div class="speed-sc" id="sp-sc">Score: 0 / ${SP_TARGET}</div>
+        <div class="speed-grid" id="sp-grid">
+          ${SP_PIECES.map((p,i)=>`<div class="sp-tile" id="spt${i}" onclick="hitSP(${i})">${p}</div>`).join('')}
+        </div>
+        <div id="sp-result"></div>
+      </div>
+    </div>`;
+}
+
+function startSpeed(){
+  G.sScore=0;G.sTime=15;G.sStarted=true;G.sDone=false;
+  document.getElementById('sp-start').style.display='none';
+  document.getElementById('sp-game').style.display='block';
+  G.sIv=setInterval(()=>{
+    G.sTime--;
+    const t=document.getElementById('sp-timer');
+    if(t){t.textContent=G.sTime+'s';t.className='speed-timer'+(G.sTime<=5?' urg':'');}
+    if(G.sTime<=0){clearInterval(G.sIv);endSpeed();}
+  },1000);
+  spawnSP();
+}
+
+function spawnSP(){
+  if(G.sDone)return;
+  G.sActive=Math.floor(Math.random()*12);
+  SP_PIECES.forEach((_,i)=>{const t=document.getElementById('spt'+i);if(t)t.className='sp-tile'+(i===G.sActive?' active':'');});
+  G.sTimeout=setTimeout(()=>{
+    const t=document.getElementById('spt'+G.sActive);
+    if(t&&t.classList.contains('active'))t.className='sp-tile miss';
+    G.sTimeout=setTimeout(spawnSP,350);
+  },850);
+}
+
+function hitSP(i){
+  if(!G.sStarted||G.sDone)return;
+  const t=document.getElementById('spt'+i);
+  if(t&&t.classList.contains('active')){
+    t.className='sp-tile hit';G.sActive=-1;G.sScore++;
+    const sc=document.getElementById('sp-sc');if(sc)sc.textContent=`Score: ${G.sScore} / ${SP_TARGET}`;
+  }
+}
+
+function endSpeed(){
+  G.sDone=true;clearTimeout(G.sTimeout);
+  const res=document.getElementById('sp-result');
+  if(G.sScore>=SP_TARGET){
+    if(res)res.innerHTML=`<div class="msg-ok" style="display:block;margin-top:14px">✓ ${G.sScore} PIECES! Unlocking Partners...</div>`;
+    setTimeout(()=>unlock(4,300,'PARTNERS UNLOCKED'),900);
+  } else {
+    if(res)res.innerHTML=`<div class="msg-fail" style="display:block">Need ${SP_TARGET}, got ${G.sScore}. Retry!</div><br><button class="gate-btn" style="margin-top:10px" onclick="resetSpeed()">RETRY</button>`;
+  }
+}
+
+function resetSpeed(){
+  clearInterval(G.sIv);clearTimeout(G.sTimeout);
+  G.sStarted=false;G.sDone=false;renderSpeedGate();
+}
+
+// ── PARTNERS ──
+const SPONSORS=[
+  {g:'♟',n:'CHESS.COM',c:'Official Platform',d:"World's largest chess platform, 100M+ members."},
+  {g:'⌚',n:'ULYSSE NARDIN',c:'Luxury Partner',d:'Swiss precision — a natural fit for Magnus.'},
+  {g:'👑',n:'PLAY MAGNUS',c:'Founding Brand',d:'Teaching millions to think like a World Champion.'},
+  {g:'🎮',n:'KINDRED',c:'Gaming Partner',d:'Chess meets competitive gaming worldwide.'},
+  {g:'📚',n:'CHESSABLE',c:'Education',d:'Science-backed courses from the grandmaster himself.'},
+  {g:'🏋',n:'HIMS',c:'Wellness',d:'Peak mental and physical performance — the Magnus way.'},
+];
+
+function renderPartners(){
+  document.getElementById('sec-partners').innerHTML=`
+    <div class="unlocked-bar">✓ SPEED ROUND CLEARED — PARTNERS UNLOCKED (+300 XP)</div>
+    <div class="eyebrow">Partners</div><div class="gline"></div>
+    <div class="dhead">TRUSTED<br>BY THE<br><em>BEST</em></div>
+    <div class="sp-grid">
+      ${SPONSORS.map(s=>`<div class="sp-c"><div class="sp-g">${s.g}</div><div class="sp-n">${s.n}</div><div class="sp-cat">${s.c}</div><div class="sp-d">${s.d}</div></div>`).join('')}
+    </div>
+    <div style="text-align:center;margin-top:32px">
+      <button class="gate-btn" onclick="unlock(5,150,'MERCH UNLOCKED')">CONTINUE TO MERCH →</button>
+    </div>`;
+}
+
+// ── MERCH ──
+const MERCH=[
+  {p:'♔',b:'Limited',n:"King's Gambit Hoodie",pr:'$89',bg:'#0c0a06'},
+  {p:'♛',b:'Signature',n:"Queen's Defence Tee",pr:'$45',bg:'#060c08'},
+  {p:'♟',b:'Premium',n:'Pro Chess Set',pr:'$299',bg:'#08060c'},
+  {p:'♜',b:'Classic',n:'Rook Snapback',pr:'$38',bg:'#0c0606'},
+  {p:'♝',b:'Winter 24',n:'Bishop Jacket',pr:'$149',bg:'#06090c'},
+  {p:'♞',b:'Carry',n:'Knight Move Pack',pr:'$119',bg:'#0a0c06'},
+];
+
+function renderMerch(){
+  document.getElementById('sec-merch').innerHTML=`
+    <div class="eyebrow">Official Collection</div><div class="gline"></div>
+    <div class="dhead">THE<br><em>COLLECTION</em></div>
+    <div class="merch-grid">
+      ${MERCH.map((m,i)=>`
+        <div class="mc" style="background:${m.bg}">
+          <div class="mc-img">
+            <div class="mc-chess">${Array.from({length:16},(_,j)=>`<div class="mcc${(Math.floor(j/4)+j%4)%2===0?' l':''}"></div>`).join('')}</div>
+            <span class="mc-p">${m.p}</span>
+          </div>
+          <div class="mc-info">
+            <div class="mc-badge">${m.b}</div>
+            <div class="mc-name">${m.n}</div>
+            <div class="mc-foot">
+              <div class="mc-price">${m.pr}</div>
+              <button class="mc-buy" onclick="addCart(${i})">Add to Cart</button>
+            </div>
+          </div>
+        </div>`).join('')}
+    </div>
+    <div style="text-align:center;margin-top:32px">
+      <button class="gate-btn" onclick="unlock(6,100,'CONTACT UNLOCKED')">CONTINUE TO CONTACT →</button>
+    </div>`;
+}
+
+function addCart(i){G.score+=25;updateHUD();toast(`${MERCH[i].n} added! +25 XP`,'');}
+
+// ── CONTACT ──
+function renderContact(){
+  document.getElementById('sec-contact').innerHTML=`
+    <div class="eyebrow">Get In Touch</div><div class="gline"></div>
+    <div class="ct-grid">
+      <div>
+        <div class="ct-big">MAKE<br><span>YOUR</span><br>MOVE</div>
+        <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:17px;color:rgba(240,235,224,0.42);line-height:1.75;margin-bottom:20px">Partnerships, media appearances, brand collaborations, and speaking engagements.</div>
+        <div class="soc-list">
+          ${[{ic:'𝕏',n:'Twitter / X',h:'@MagnusCarlsen'},{ic:'📸',n:'Instagram',h:'@magnus_carlsen'},{ic:'▶',n:'YouTube',h:'Magnus Carlsen'},{ic:'♟',n:'Chess.com',h:'MagnusCarlsen'},{ic:'💼',n:'Management',h:'team@magnuscarlsen.com'}].map(s=>`<div class="soc-row"><span style="font-size:18px">${s.ic}</span><span class="soc-nm">${s.n}</span><span class="soc-hn">${s.h}</span></div>`).join('')}
+        </div>
+      </div>
+      <div>
+        <div id="cf-wrap" class="cf">
+          <div class="cf-g"><label class="cf-l">Full Name</label><input class="cf-i" type="text" placeholder="Your name"/></div>
+          <div class="cf-g"><label class="cf-l">Email</label><input class="cf-i" type="email" placeholder="your@email.com"/></div>
+          <div class="cf-g"><label class="cf-l">Enquiry</label><input class="cf-i" type="text" placeholder="Partnership / Media / Appearance"/></div>
+          <div class="cf-g"><label class="cf-l">Message</label><textarea class="cf-ta" placeholder="Tell us about your proposal..."></textarea></div>
+          <button class="cf-btn" onclick="submitForm()">Send Your Move →</button>
+        </div>
+        <div class="success-box" id="cf-success">
+          <span class="s-piece">♔</span>
+          <div class="s-head">CHECKMATE.</div>
+          <div class="s-sub">Message received. We respond within 48hrs.</div>
+          <div style="margin-top:16px;color:var(--gold);font-size:11px;letter-spacing:2px">+100 XP — QUEST COMPLETE!</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function submitForm(){
+  const w=document.getElementById('cf-wrap'),s=document.getElementById('cf-success');
+  if(w)w.style.display='none';if(s)s.style.display='block';
+  unlock(7,100,'QUEST COMPLETE');
+  document.getElementById('final').style.display='block';
+  document.getElementById('final-score').textContent='FINAL SCORE: '+G.score;
+  document.getElementById('final-rank').textContent=G.score>=900?'♔ GRANDMASTER':G.score>=500?'♗ INTERMEDIATE':'♟ BEGINNER';
+}
+
+// ── LOCKED ──
+function locked(id,msg){document.getElementById(id).innerHTML=`<div class="locked-box"><span class="locked-ic">🔒</span><div class="locked-t">${msg}</div></div>`;}
+
+// ── MASTER RENDER ──
+function renderAll(){
+  // ABOUT
+  if(!G.unlocks[1]){initPuzzle();renderPuzzleGate();}
+  else renderAbout();
+
+  // GALLERY
+  if(!G.unlocks[1])locked('sec-gallery','Solve the puzzle above first');
+  else if(!G.unlocks[2]){initChess();renderChessGate();}
+  else renderGallery();
+
+  // PARTNERS
+  if(!G.unlocks[3])locked('sec-partners','Flip all gallery cards to proceed');
+  else if(!G.unlocks[4])renderSpeedGate();
+  else renderPartners();
+
+  // MERCH
+  if(!G.unlocks[5])locked('sec-merch','Complete Speed Challenge to unlock Merch');
+  else renderMerch();
+
+  // CONTACT
+  if(!G.unlocks[6])locked('sec-contact','Complete Merch section to unlock Contact');
+  else renderContact();
+
+  updateHUD();
+}
+</script>
+</body>
+</html>
